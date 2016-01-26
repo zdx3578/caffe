@@ -73,10 +73,25 @@ def classify_upload():
         )
 
     result = app.clf.classify_image(image)
+    #print '----                         ..'
+    #print result
     return flask.render_template(
         'index.html', has_result=True, result=result,
         imagesrc=embed_image_html(image)
     )
+
+def classify_dir(imagedir):
+    for root, directories, filenames in os.walk(imagedir):
+      for filename in filenames:
+
+        lfname =os.path.join(root,filename)
+        catlog=root.split('/')[-1]
+        cimage = exifutil.open_oriented_im(lfname)
+        #print ('       .        .        .         .         .          .') 
+#        print ("caffe.imagenet.1000",lfname,root,catlog ,filename )
+
+        app.clf.classify_image(cimage,catlog)
+
 
 
 def embed_image_html(image):
@@ -99,9 +114,11 @@ def allowed_file(filename):
 class ImagenetClassifier(object):
     default_args = {
         'model_def_file': (
-            '{}/models/bvlc_reference_caffenet/deploy.prototxt'.format(REPO_DIRNAME)),
+#            '{}/models/bvlc_reference_caffenet/deploy.prototxt'.format(REPO_DIRNAME)),
+            '{}/models/bvlc_googlenet/deploy.prototxt'.format(REPO_DIRNAME)),
         'pretrained_model_file': (
-            '{}/models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel'.format(REPO_DIRNAME)),
+            '{}/models/bvlc_googlenet/bvlc_googlenet.caffemodel'.format(REPO_DIRNAME)),
+#            '{}/models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel'.format(REPO_DIRNAME)),
         'mean_file': (
             '{}/python/caffe/imagenet/ilsvrc_2012_mean.npy'.format(REPO_DIRNAME)),
         'class_labels_file': (
@@ -145,35 +162,47 @@ class ImagenetClassifier(object):
         # We could use better psychological models here...
         self.bet['infogain'] -= np.array(self.bet['preferences']) * 0.1
 
-    def classify_image(self, image):
+    def classify_image(self, image,catlog):
         try:
             starttime = time.time()
             scores = self.net.predict([image], oversample=True).flatten()
+            #print('      .1    scores:    %s ' % (scores)) 
             endtime = time.time()
 
             indices = (-scores).argsort()[:5]
             predictions = self.labels[indices]
 
+	    #print indices
+	    #print predictions
+            #print('      .2    predictions: %s  ' % (predictions))
+
             # In addition to the prediction text, we will also produce
             # the length for the progress bar visualization.
             meta = [
-                (p, '%.5f' % scores[i])
+                ("caffe1000", p, '%.5f' % scores[i])
                 for i, p in zip(indices, predictions)
             ]
-            logging.info('result: %s', str(meta))
+
+	    print(catlog)
+            print(meta)
+
+	        
+            #logging.info('caffe1000imagenet cat: %s , result: %s', catlog, str(meta))
+            #print (endtime - starttime)
+
 
             # Compute expected information gain
-            expected_infogain = np.dot(
-                self.bet['probmat'], scores[self.bet['idmapping']])
-            expected_infogain *= self.bet['infogain']
+            #expected_infogain = np.dot(
+             #   self.bet['probmat'], scores[self.bet['idmapping']])
+            #expected_infogain *= self.bet['infogain']
 
             # sort the scores
-            infogain_sort = expected_infogain.argsort()[::-1]
-            bet_result = [(self.bet['words'][v], '%.5f' % expected_infogain[v])
-                          for v in infogain_sort[:5]]
-            logging.info('bet result: %s', str(bet_result))
+            #infogain_sort = expected_infogain.argsort()[::-1]
+            #bet_result = [(self.bet['words'][v], '%.5f' % expected_infogain[v])
+             #             for v in infogain_sort[:5]]
+            #logging.info('bet result: %s', str(bet_result))
 
-            return (True, meta, bet_result, '%.3f' % (endtime - starttime))
+            #return (True, meta, bet_result, '%.3f' % (endtime - starttime))
 
         except Exception as err:
             logging.info('Classification error: %s', err)
@@ -206,6 +235,10 @@ def start_from_terminal(app):
         '-g', '--gpu',
         help="use gpu mode",
         action='store_true', default=False)
+    parser.add_option(
+        '--dir',
+        help="image dir for batch classify ")
+
 
     opts, args = parser.parse_args()
     ImagenetClassifier.default_args.update({'gpu_mode': opts.gpu})
@@ -217,11 +250,14 @@ def start_from_terminal(app):
     if opts.debug:
         app.run(debug=True, host='0.0.0.0', port=opts.port)
     else:
-        start_tornado(app, opts.port)
-
+#        start_tornado(app, opts.port)
+        classify_dir(opts.dir)
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
     start_from_terminal(app)
+#    classify_dir(imagedir)
+
+
