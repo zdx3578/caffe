@@ -87,11 +87,10 @@ def classify_dir(imagedir):
         lfname =os.path.join(root,filename)
         catlog=root.split('/')[-1]
         cimage = exifutil.open_oriented_im(lfname)
-        #print ('       .        .        .         .         .          .') 
-#        print ("caffe.imagenet.1000",lfname,root,catlog ,filename )
-
+	global f
+	f=open('/tmp/data/1000caffefileout.txt','a') 
         app.clf.classify_image(cimage,catlog)
-
+	f.close()
 
 
 def embed_image_html(image):
@@ -153,8 +152,14 @@ class ImagenetClassifier(object):
                     'name': ' '.join(l.strip().split(' ')[1:]).split(',')[0]
                 }
                 for l in f.readlines()
+		
+
             ])
-        self.labels = labels_df.sort('synset_id')['name'].values
+        #self.labels = labels_df.sort('synset_id')['name'].values
+	self.labels = labels_df.sort('synset_id')['synset_id'].values
+
+
+	print self.labels
 
         self.bet = cPickle.load(open(bet_file))
         # A bias to prefer children nodes in single-chain paths
@@ -172,19 +177,32 @@ class ImagenetClassifier(object):
             indices = (-scores).argsort()[:5]
             predictions = self.labels[indices]
 
-	    #print indices
+	    print indices
 	    #print predictions
             #print('      .2    predictions: %s  ' % (predictions))
 
             # In addition to the prediction text, we will also produce
             # the length for the progress bar visualization.
-            meta = [
-                ("caffe1000", p, '%.5f' % scores[i])
-                for i, p in zip(indices, predictions)
-            ]
 
-	    print(catlog)
-            print(meta)
+	    f.write('#'+catlog+"\n")
+
+            #meta =  [
+             #   ("caffe1000" , p,"%.5f" % scores[i])
+              #  for i, p in zip(indices, predictions)
+            #]
+
+	    for i ,p in zip(indices,predictions):
+		f.write('(caffe1000.')
+		i2=(  "%.5f" % scores[i]  )
+		f.write(p.replace("'","")+',')
+		f.write(i2.replace("'","")+')')
+		#f.write(p.replace("'","")+'.')
+	    f.write("\n")
+
+	    #print(catlog)
+	    #for (i) in meta:
+	    #  f.write()
+            #print(meta)
 
 	        
             #logging.info('caffe1000imagenet cat: %s , result: %s', catlog, str(meta))
