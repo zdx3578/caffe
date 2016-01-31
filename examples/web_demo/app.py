@@ -81,16 +81,16 @@ def classify_upload():
     )
 
 def classify_dir(imagedir):
+    global f
+    f=open('/tmp/data/1000caffefileout.txt','w+')
     for root, directories, filenames in os.walk(imagedir):
       for filename in filenames:
-
         lfname =os.path.join(root,filename)
         catlog=root.split('/')[-1]
         cimage = exifutil.open_oriented_im(lfname)
-	global f
-	f=open('/tmp/data/1000caffefileout.txt','a') 
+
         app.clf.classify_image(cimage,catlog)
-	f.close()
+    f.close()
 
 
 def embed_image_html(image):
