@@ -1,3 +1,4 @@
+#  python appdir.py  -t --dir /opt/data/image/img1new/
 import os
 import time
 import cPickle
@@ -80,16 +81,29 @@ def classify_upload():
         imagesrc=embed_image_html(image)
     )
 
-def classify_dir(imagedir):
-    global f
-    f=open('/tmp/data/1000caffefileout.txt','w+')
+def classify_dir(imagedir,test):
+  global f
+  if test=='test':
+    f=open('/opt/data/1000caffefileout-test.txt','a')
     for root, directories, filenames in os.walk(imagedir):
       for filename in filenames:
-        lfname =os.path.join(root,filename)
-        catlog=root.split('/')[-1]
-        cimage = exifutil.open_oriented_im(lfname)
-
-        app.clf.classify_image(cimage,catlog)
+        if 'test' in root:
+          if filename not in 'Thumbs.db':
+            lfname =os.path.join(root,filename)
+            catlog=root.split('/')[-3]
+            cimage = exifutil.open_oriented_im(lfname)
+            app.clf.classify_image(cimage,catlog,lfname)
+    f.close()
+  else:
+    f=open('/opt/data/1000caffefileout.txt','a')
+    for root, directories, filenames in os.walk(imagedir):
+      for filename in filenames:
+        if 'test' not in root:
+          if filename not in 'Thumbs.db':
+            lfname =os.path.join(root,filename)
+            catlog=root.split('/')[-2]
+            cimage = exifutil.open_oriented_im(lfname)
+            app.clf.classify_image(cimage,catlog,lfname)
     f.close()
 
 
@@ -167,7 +181,7 @@ class ImagenetClassifier(object):
         # We could use better psychological models here...
         self.bet['infogain'] -= np.array(self.bet['preferences']) * 0.1
 
-    def classify_image(self, image,catlog):
+    def classify_image(self, image,catlog,lfname):
         try:
             starttime = time.time()
             scores = self.net.predict([image], oversample=True).flatten()
@@ -186,10 +200,10 @@ class ImagenetClassifier(object):
 
 	    f.write('#'+catlog+"\n")
 
-            #meta =  [
-             #   ("caffe1000" , p,"%.5f" % scores[i])
-              #  for i, p in zip(indices, predictions)
-            #]
+            meta =  [
+                ("caffe1000." , p,"%.5f" % scores[i])
+                for i, p in zip(indices, predictions)
+            ]
 
 	    for i ,p in zip(indices,predictions):
 		f.write('(caffe1000.')
@@ -199,14 +213,15 @@ class ImagenetClassifier(object):
 		#f.write(p.replace("'","")+'.')
 	    f.write("\n")
 
-	    #print(catlog)
+	    print(catlog)
+            print lfname
 	    #for (i) in meta:
 	    #  f.write()
-            #print(meta)
+            print(meta)
 
 	        
             #logging.info('caffe1000imagenet cat: %s , result: %s', catlog, str(meta))
-            #print (endtime - starttime)
+            print (endtime - starttime)
 
 
             # Compute expected information gain
@@ -256,6 +271,10 @@ def start_from_terminal(app):
     parser.add_option(
         '--dir',
         help="image dir for batch classify ")
+    parser.add_option(
+        '-t', '--test',
+        help="run test dir image classify",
+        action='store_true', default=False)
 
 
     opts, args = parser.parse_args()
@@ -269,7 +288,10 @@ def start_from_terminal(app):
         app.run(debug=True, host='0.0.0.0', port=opts.port)
     else:
 #        start_tornado(app, opts.port)
-        classify_dir(opts.dir)
+      if opts.test:
+        classify_dir(opts.dir,'test')
+      else:
+        classify_dir(opts.dir,'train')
 
 if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
